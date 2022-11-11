@@ -1,5 +1,6 @@
 const { src, dest, task, watch, series, parallel } = require('gulp');
 const del = require('del');
+const options = require("./config");
 const browserSync = require('browser-sync').create();
 const sass = require('gulp-sass')(require('sass'));
 const concat = require('gulp-concat');
@@ -15,9 +16,9 @@ const logSymbols = require('log-symbols');
 function livePreview(done) {
     browserSync.init({
         server: {
-            baseDir: './dist'
+            baseDir: options.paths.dist.base
         },
-        port: 9050 || 5000
+        port: options.config.port || 5000
     });
     done();
 }
@@ -31,17 +32,17 @@ function previewReload(done) {
 
 // Dev tasks
 function devHTML() {
-    return src('./src/**/*.html')
-        .pipe(dest('./dist'));
+    return src(`${options.paths.src.base}/**/*.html`)
+        .pipe(dest(options.paths.dist.base));
 }
 
 function devStyles() {
     const tailwindcss = require('tailwindcss');
-    return src('./src/**/*.scss')
+    return src(`${options.paths.src.css}/**/*.scss`)
         .pipe(sass().on('error', sass.logError))
-        .pipe(dest('./src/css'))
+        .pipe(dest(options.paths.src.css))
         .pipe(postcss([
-            tailwindcss('./tailwind.config.js'),
+            tailwindcss(options.config.tailwindjs),
             require('autoprefixer'),
         ]))
         .pipe(concat({ path: 'main.css'}))
@@ -49,41 +50,41 @@ function devStyles() {
             browsers: ['last 99 versions'],
             cascade: false
         }))
-        .pipe(dest('./dist/assets/css'));
+        .pipe(dest(options.paths.dist.css));
 }
 
 function devScripts() {
-    return src('./src/**/*.js')
+    return src(`${options.paths.src.js}/**/*.js`)
         .pipe(concat({ path: 'scripts.js'}))
-        .pipe(dest('./dist/assets/js'));
+        .pipe(dest(options.paths.dist.js));
 }
 
 function devImages() {
-    return src('./src/assets/images/**/*')
-        .pipe(dest('./dist/assets/images'));
+    return src(`${options.paths.src.img}/**/*`)
+        .pipe(dest(options.paths.dist.img));
 }
 
 function watchFiles() {
-    watch('./src/**/*.html', series(devHTML, devStyles, previewReload));
-    watch(['./tailwind.config.js', './src/assets/css/**/*.scss'], series(devStyles, previewReload));
-    watch('./src/assets/js/**/*.js', series(devScripts, previewReload));
-    watch('./src/assets/images/**/*', series(devImages, previewReload));
+    watch(`${options.paths.src.base}/**/*.html`, series(devHTML, devStyles, previewReload));
+    watch([options.config.tailwindjs, `${options.paths.src.css}/**/*.scss`], series(devStyles, previewReload));
+    watch(`${options.paths.src.js}/**/*.js`, series(devScripts, previewReload));
+    watch(`${options.paths.src.img}/**/*`, series(devImages, previewReload));
     console.log("\n\t" + logSymbols.info,"Watching for Changes..\n");
 }
 
 function devClean() {
     console.log("\n\t" + logSymbols.info,"Cleaning dist folder for fresh start.\n");
-    return del('./dist');
+    return del([options.paths.dist.base]);
 }
 
 // Prod tasks
 function prodHTML() {
-    return src('./src/**/*.html')
-        .pipe(dest('./public'));
+    return src(`${options.paths.src.base}/**/*.html`)
+        .pipe(dest(options.paths.build.base));
 }
 
 function prodStyles() {
-    return src('./dist/css/**/*')
+    return src(`${options.paths.dist.css}/**/*`)
         .pipe(purgecss({
             content: ['src/**/*.{html,js}'],
             defaultExtractor: content => {
@@ -93,25 +94,25 @@ function prodStyles() {
             }
         }))
         .pipe(cleanCSS({ compatibility: 'ie8'}))
-        .pipe(dest('./public/assets/css'));
+        .pipe(dest(options.paths.build.css));
 }
 
 function prodScripts() {
-    return src('./src/assets/js/**/*.js')
+    return src(`${options.paths.src.js}/**/*.js`)
         .pipe(concat({ path: 'scripts.js' }))
         .pipe(uglify())
-        .pipe(dest('./public/assets/js'));
+        .pipe(dest(options.paths.build.js));
 }
 
 function prodImages() {
-    return src('./src/assets/images/**/*')
+    return src(options.paths.src.img + '/**/*')
         .pipe(imagemin())
-        .pipe(dest('./public/assets/images'));
+        .pipe(dest(options.paths.build.img));
 }
 
 function prodClean() {
     console.log("\n\t" + logSymbols.info,"Cleaning build folder for fresh start.\n");
-    return del('./public');
+    return del([options.paths.build.base]);
 }
 
 exports.default = series(
